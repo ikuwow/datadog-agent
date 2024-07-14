@@ -359,8 +359,11 @@ func (p *goTLSProgram) AttachPID(pid uint32) error {
 
 	// Check go process
 	probeList := make([]manager.ProbeIdentificationPair, 0)
-	return p.registry.Register(binPath, pid, registerCBCreator(p.manager, p.offsetsDataMap, p.pidToDeviceInodeMap, &probeList, p.binAnalysisMetric),
-		unregisterCBCreator(p.manager, &probeList, p.offsetsDataMap, p.pidToDeviceInodeMap))
+	return p.registry.Register(binPath,
+		pid,
+		registerCBCreator(p.manager, p.offsetsDataMap, p.pidToDeviceInodeMap, &probeList, p.binAnalysisMetric),
+		unregisterCBCreator(p.manager, &probeList, p.offsetsDataMap, p.pidToDeviceInodeMap),
+		alreadyCBCreator(p.pidToDeviceInodeMap))
 }
 
 func registerCBCreator(mgr *manager.Manager, offsetsDataMap, pidToDeviceInodeMap *ebpf.Map, probeIDs *[]manager.ProbeIdentificationPair, binAnalysisMetric *libtelemetry.Counter) func(path utils.FilePath) error {
@@ -399,6 +402,21 @@ func registerCBCreator(mgr *manager.Manager, offsetsDataMap, pidToDeviceInodeMap
 		binAnalysisMetric.Add(elapsed.Milliseconds())
 		log.Debugf("attached hooks on %s (%v) in %s", filePath.HostPath, filePath.ID, elapsed)
 		return nil
+	}
+}
+
+// alreadyCBCreator handles the case where a binary is already registered. In such a case the registry callback won't
+// be called, so we need to add a mapping from the PID to the device/inode of the binary.
+func alreadyCBCreator(pidToDeviceInodeMap *ebpf.Map) func(utils.FilePath) error {
+	return func(filePath utils.FilePath) error {
+		if filePath.PID == 0 {
+			return nil
+		}
+		return pidToDeviceInodeMap.Put(unsafe.Pointer(&filePath.PID), unsafe.Pointer(&gotls.TlsBinaryId{
+			Id_major: unix.Major(filePath.ID.Dev),
+			Id_minor: unix.Minor(filePath.ID.Dev),
+			Ino:      filePath.ID.Inode,
+		}))
 	}
 }
 
