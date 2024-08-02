@@ -85,6 +85,7 @@ jobs:
         id: should
         run: |
           cd go/src/github.com/DataDog/datadog-agent
+          git fetch
           if test $(
             git diff $GITHUB_BASE_REF...$GITHUB_HEAD_REF --name-only | grep dependencies_linux_amd64.txt
           ); then
