@@ -86,7 +86,7 @@ jobs:
         run: |
           cd go/src/github.com/DataDog/datadog-agent
           if test $(
-            git diff $GITHUB_BASE_REF..$GITHUB_SHA --name-only | grep dependencies_linux_amd64.txt
+            git diff $GITHUB_BASE_REF...$GITHUB_SHA --name-only | grep dependencies_linux_amd64.txt
           ); then
             echo "should_run=true" >> $GITHUB_OUTPUT
           elif [[ ${{ steps.compare.outputs.diff }} > env.SIZE_ALLOWANCE ]]; then
