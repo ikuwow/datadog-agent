@@ -76,6 +76,7 @@ type DCAClientInterface interface {
 
 	PostLanguageMetadata(ctx context.Context, data *pbgo.ParentLanguageAnnotationRequest) error
 	SupportsNamespaceMetadataCollection() bool
+	GetClusterAgentAPIRequestHeaders() http.Header
 }
 
 // DCAClient is required to query the API of Datadog cluster agent
@@ -512,4 +513,8 @@ func (c *DCAClient) PostLanguageMetadata(ctx context.Context, data *pbgo.ParentL
 func (c *DCAClient) SupportsNamespaceMetadataCollection() bool {
 	dcaVersion := c.Version(false)
 	return dcaVersion.Major >= 7 && dcaVersion.Minor >= 55
+}
+
+func (c *DCAClient) GetClusterAgentAPIRequestHeaders() http.Header {
+	return c.clusterAgentAPIRequestHeaders.Clone()
 }

@@ -7,6 +7,7 @@ package defaultforwarder
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -31,6 +32,7 @@ type domainForwarder struct {
 	isRetrying                *atomic.Bool
 	domain                    string
 	isMRF                     bool
+	isDCA                     bool
 	numberOfWorkers           int
 	highPrio                  chan transaction.Transaction // use to receive new transactions
 	lowPrio                   chan transaction.Transaction // use to retry transactions
@@ -45,6 +47,7 @@ type domainForwarder struct {
 	transactionPrioritySorter retry.TransactionPrioritySorter
 	blockedList               *blockedEndpoints
 	pointCountTelemetry       *retry.PointCountTelemetry
+	headerOverrides           http.Header
 }
 
 func newDomainForwarder(
@@ -52,6 +55,7 @@ func newDomainForwarder(
 	log log.Component,
 	domain string,
 	mrf bool,
+	isLocalDCA bool,
 	retryQueue *retry.TransactionRetryQueue,
 	numberOfWorkers int,
 	connectionResetInterval time.Duration,
@@ -62,6 +66,7 @@ func newDomainForwarder(
 		log:                       log,
 		isRetrying:                atomic.NewBool(false),
 		isMRF:                     mrf,
+		isDCA:                     isLocalDCA,
 		domain:                    domain,
 		numberOfWorkers:           numberOfWorkers,
 		retryQueue:                retryQueue,
@@ -210,7 +215,7 @@ func (f *domainForwarder) Start() error {
 	f.init()
 
 	for i := 0; i < f.numberOfWorkers; i++ {
-		w := NewWorker(f.config, f.log, f.highPrio, f.lowPrio, f.requeuedTransaction, f.blockedList, f.pointCountTelemetry)
+		w := NewWorker(f.config, f.log, f.highPrio, f.lowPrio, f.requeuedTransaction, f.blockedList, f.pointCountTelemetry, f.isDCA)
 		w.Start()
 		f.workers = append(f.workers, w)
 	}
@@ -299,6 +304,10 @@ func (f *domainForwarder) sendHTTPTransactions(t transaction.Transaction) {
 		f.log.Debugf("Transaction for domain %v is marked as secondary only, but the forwarder is not in MRF mode; dropping transaction.", t.GetTarget())
 		return
 	}
+	if t.GetKind() == transaction.Series && t.GetDestination() == transaction.LocalOnly {
+		f.log.Infof("Transaction for domain %v is marked as local only", t.GetTarget())
+	}
+	f.log.Infof("Sending transaction to domain %v", t.GetTarget())
 
 	// We don't want to block the collector if the highPrio queue is full
 	select {

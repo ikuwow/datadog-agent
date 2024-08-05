@@ -22,9 +22,11 @@ import (
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder/internal/retry"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder/resolver"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder/transaction"
+	"github.com/DataDog/datadog-agent/pkg/api/security"
 	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
+	"github.com/DataDog/datadog-agent/pkg/util/clusteragent"
 	"github.com/DataDog/datadog-agent/pkg/util/filesystem"
 	"github.com/DataDog/datadog-agent/pkg/version"
 )
@@ -201,6 +203,7 @@ type DefaultForwarder struct {
 
 	domainForwarders map[string]*domainForwarder
 	domainResolvers  map[string]resolver.DomainResolver
+	localForwarder   *domainForwarder // domain forward used for communication with the local cluster-agent
 	healthChecker    *forwarderHealth
 	internalState    *atomic.Uint32
 	m                sync.Mutex // To control Start/Stop races
@@ -232,6 +235,7 @@ func NewDefaultForwarder(config config.Component, log log.Component, options *Op
 		},
 		completionHandler: options.CompletionHandler,
 		agentName:         agentName,
+		localForwarder:    nil,
 	}
 	var optionalRemovalPolicy *retry.FileRemovalPolicy
 	storageMaxSize := config.GetInt64("forwarder_storage_max_size_in_bytes")
@@ -315,6 +319,7 @@ func NewDefaultForwarder(config config.Component, log log.Component, options *Op
 				log,
 				domain,
 				isMRF,
+				false,
 				transactionContainer,
 				options.NumberOfWorkers,
 				options.ConnectionResetInterval,
@@ -324,6 +329,49 @@ func NewDefaultForwarder(config config.Component, log log.Component, options *Op
 			// Register all alternate domains for each forwarder
 			for _, v := range resolver.GetAlternateDomains() {
 				f.domainForwarders[v] = fwd
+			}
+		}
+	}
+	log.Infof("autoscaling.failover.enabled: %v", config.GetBool("autoscaling.failover.enabled"))
+	// domainforwarder to local DCA for autoscaling failover metrics
+	if config.GetBool("autoscaling.failover.enabled") && config.GetBool("cluster_agent.enabled") {
+		domain, err := clusteragent.GetClusterAgentEndpoint()
+		if err != nil {
+			log.Errorf("Could not get cluster agent endpoint for autoscaling failover metrics: %s", err)
+		} else {
+			pointCountTelemetry := retry.NewPointCountTelemetry(domain)
+			transactionContainer := retry.NewTransactionRetryQueue(
+				transaction.SortByCreatedTimeAndPriority{HighPriorityFirst: true},
+				nil,
+				options.RetryQueuePayloadsTotalMaxSize,
+				flushToDiskMemRatio,
+				retry.NewTransactionRetryQueueTelemetry(domain),
+				pointCountTelemetry)
+			fwd := newDomainForwarder(
+				config,
+				log,
+				domain,
+				false,
+				true,
+				transactionContainer,
+				1,
+				options.ConnectionResetInterval,
+				domainForwarderSort,
+				pointCountTelemetry)
+
+			authToken, err := security.GetClusterAgentAuthToken(config)
+			if err != nil {
+				log.Errorf("Failed to get cluster agent auth token: ", err)
+			} else {
+				fwd.headerOverrides = http.Header{}
+				fwd.headerOverrides.Set("Authorization", fmt.Sprintf("Bearer %s", authToken))
+				if len(fwd.headerOverrides) == 0 {
+					log.Warnf("Cluster agent API request headers are empty")
+				} else {
+					log.Infof("Setting cluster agent API endpoint: %s", domain)
+					f.domainForwarders[domain] = fwd
+					f.localForwarder = fwd
+				}
 			}
 		}
 	}
@@ -466,6 +514,30 @@ func (f *DefaultForwarder) createAdvancedHTTPTransactions(endpoint transaction.E
 	allowArbitraryTags := f.config.GetBool("allow_arbitrary_tags")
 
 	for _, payload := range payloads {
+		if payload.Destination == transaction.LocalOnly {
+			// Only metrics are sent to the local forwarder
+			if endpoint == endpoints.SeriesEndpoint && f.localForwarder != nil {
+				t := transaction.NewHTTPTransaction()
+				domain := f.localForwarder.domain
+				t.Domain = domain
+				t.Endpoint = endpoint
+				t.Payload = payload
+				t.Priority = priority
+				t.Kind = kind
+				t.StorableOnDisk = storableOnDisk
+				t.Destination = payload.Destination
+				t.Headers = f.localForwarder.headerOverrides
+				for key := range extra {
+					t.Headers.Set(key, extra.Get(key))
+				}
+				tlmTxInputCount.Inc(domain, endpoint.Name)
+				tlmTxInputBytes.Add(float64(t.GetPayloadSize()), domain, endpoint.Name)
+				transactionsInputCountByEndpoint.Add(endpoint.Name, 1)
+				transactionsInputBytesByEndpoint.Add(endpoint.Name, int64(t.GetPayloadSize()))
+				transactions = append(transactions, t)
+			}
+			continue
+		}
 		for domain, dr := range f.domainResolvers {
 			for _, apiKey := range dr.GetAPIKeys() {
 				t := transaction.NewHTTPTransaction()
