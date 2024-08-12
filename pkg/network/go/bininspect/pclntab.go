@@ -18,7 +18,7 @@ func pclnFuncs(f *elf.File) []Func {
 		return nil
 	}
 
-	return getfuncs(NewLineTable(pclntabSect, textSect.Addr))
+	return getfuncs(newLineTable(pclntabSect, textSect.Addr))
 }
 
 // A Func collects information about a single function.
@@ -79,11 +79,11 @@ type lineTable struct {
 	ptrBufferSizeHelper []byte
 }
 
-// NewLineTable returns a new PC/line table
+// newLineTable returns a new PC/line table
 // corresponding to the encoded data.
 // Text must be the start address of the
 // corresponding text segment.
-func NewLineTable(sect *elf.Section, text uint64) *lineTable {
+func newLineTable(sect *elf.Section, text uint64) *lineTable {
 	return &lineTable{Section: sect, PC: text, funcNameHelper: make([]byte, 25)}
 }
 
