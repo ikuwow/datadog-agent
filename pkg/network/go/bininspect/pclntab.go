@@ -28,11 +28,7 @@ type Func struct {
 	Name  string
 }
 
-type Table struct {
-	Funcs []Func
-}
-
-func getfuncs(pcln *LineTable) []Func {
+func getfuncs(pcln *lineTable) []Func {
 	if pcln.isGo12("") {
 		return pcln.go12Funcs()
 	}
@@ -60,7 +56,7 @@ func (s *sectionAccess) ReadAt(p []byte, off int64) (n int, err error) {
 	return s.sect.ReadAt(p, s.off+off)
 }
 
-type LineTable struct {
+type lineTable struct {
 	Section *elf.Section
 	PC      uint64
 
@@ -87,8 +83,8 @@ type LineTable struct {
 // corresponding to the encoded data.
 // Text must be the start address of the
 // corresponding text segment.
-func NewLineTable(sect *elf.Section, text uint64) *LineTable {
-	return &LineTable{Section: sect, PC: text, funcNameHelper: make([]byte, 25)}
+func NewLineTable(sect *elf.Section, text uint64) *lineTable {
+	return &lineTable{Section: sect, PC: text, funcNameHelper: make([]byte, 25)}
 }
 
 // Go 1.2 symbol table format.
@@ -103,7 +99,7 @@ func NewLineTable(sect *elf.Section, text uint64) *LineTable {
 // are expected to have that recovery logic.
 
 // isGo12 reports whether this is a Go 1.2 (or later) symbol table.
-func (t *LineTable) isGo12(versionOverride string) bool {
+func (t *lineTable) isGo12(versionOverride string) bool {
 	t.parsePclnTab(versionOverride)
 	return t.Version >= ver12
 }
@@ -116,7 +112,7 @@ const (
 
 // uintptr returns the pointer-sized value encoded at b.
 // The pointer size is dictated by the table being read.
-func (t *LineTable) uintptr(b []byte) uint64 {
+func (t *lineTable) uintptr(b []byte) uint64 {
 	if t.Ptrsize == 4 {
 		return uint64(t.Binary.Uint32(b))
 	}
@@ -124,7 +120,7 @@ func (t *LineTable) uintptr(b []byte) uint64 {
 }
 
 // parsePclnTab parses the pclntab, setting the version.
-func (t *LineTable) parsePclnTab(versionOverride string) {
+func (t *lineTable) parsePclnTab(versionOverride string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.Version != verUnknown {
@@ -250,7 +246,7 @@ func isRelevantFunction(pkg string) bool {
 const chunk = 10
 
 // go12Funcs returns a slice of Funcs derived from the Go 1.2+ pcln table.
-func (t *LineTable) go12Funcs() []Func {
+func (t *lineTable) go12Funcs() []Func {
 	// avoid OOM error on corrupt binaries
 	// empirically gathered. Most binaries are <= UINT16_MAX, but some truly huge have >= 100000 functions
 	ft := t.funcTab(chunk)
@@ -294,7 +290,7 @@ func (t *LineTable) go12Funcs() []Func {
 }
 
 // funcName returns the name of the function found at off.
-func (t *LineTable) funcName(off uint32) string {
+func (t *lineTable) funcName(off uint32) string {
 	if n, err := t.funcnametab.ReadAt(t.funcNameHelper[23:], int64(off)+23); err != nil || n != len(t.funcNameHelper[23:]) {
 		return ""
 	}
@@ -317,20 +313,20 @@ func (t *LineTable) funcName(off uint32) string {
 	return ""
 }
 
-func (t *LineTable) functabFieldSize() int {
+func (t *lineTable) functabFieldSize() int {
 	if t.Version >= ver118 {
 		return 4
 	}
 	return int(t.Ptrsize)
 }
 
-func (t *LineTable) funcTab(cacheSize int) funcTab {
+func (t *lineTable) funcTab(cacheSize int) funcTab {
 	a := t.functabFieldSize()
-	return funcTab{LineTable: t, sz: a, funcTabHelper: make([]byte, 2*a*cacheSize)}
+	return funcTab{lineTable: t, sz: a, funcTabHelper: make([]byte, 2*a*cacheSize)}
 }
 
 type funcTab struct {
-	*LineTable
+	*lineTable
 	sz            int // cached result of t.functabFieldSize
 	funcTabHelper []byte
 }
@@ -348,13 +344,6 @@ func (f funcTab) pc(i int) uint64 {
 		u += f.textStart
 	}
 	return u
-}
-
-func (f funcTab) funcOff(i int) uint64 {
-	if n, err := f.functab.ReadAt(f.ptrBufferSizeHelper, int64((2*i+1)*f.sz)); err != nil || n != int(f.Ptrsize) {
-		return 0
-	}
-	return f.uint(f.ptrBufferSizeHelper)
 }
 
 func (f funcTab) loadCache(start, count int) {
