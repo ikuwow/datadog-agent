@@ -235,6 +235,7 @@ type RuntimeSecurityConfig struct {
 	// Enforcement capabilities
 	EnforcementEnabled           bool
 	EnforcementRawSyscallEnabled bool
+	EnforcementRuleSourceAllowed []string
 
 	//WindowsFilenameCacheSize is the max number of filenames to cache
 	WindowsFilenameCacheSize int
@@ -416,6 +417,7 @@ func NewRuntimeSecurityConfig() (*RuntimeSecurityConfig, error) {
 		// enforcement
 		EnforcementEnabled:           coreconfig.SystemProbe().GetBool("runtime_security_config.enforcement.enabled"),
 		EnforcementRawSyscallEnabled: coreconfig.SystemProbe().GetBool("runtime_security_config.enforcement.raw_syscall.enabled"),
+		EnforcementRuleSourceAllowed: coreconfig.SystemProbe().GetStringSlice("runtime_security_config.enforcement.rule_source_allowed"),
 
 		// User Sessions
 		UserSessionsCacheSize: coreconfig.SystemProbe().GetInt("runtime_security_config.user_sessions.cache_size"),

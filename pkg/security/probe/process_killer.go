@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
@@ -29,11 +30,14 @@ type ProcessKiller struct {
 	sync.Mutex
 
 	pendingReports []*KillActionReport
+	sourceAllowed  []string
 }
 
 // NewProcessKiller returns a new ProcessKiller
-func NewProcessKiller() *ProcessKiller {
-	return &ProcessKiller{}
+func NewProcessKiller(cfg *config.Config) *ProcessKiller {
+	return &ProcessKiller{
+		sourceAllowed: cfg.RuntimeSecurity.EnforcementRuleSourceAllowed,
+	}
 }
 
 // AddPendingReports add a pending reports
@@ -79,8 +83,17 @@ func (p *ProcessKiller) HandleProcessExited(event *model.Event) {
 	})
 }
 
+func (p *ProcessKiller) isRuleAllowed(rule *rules.Rule) bool {
+	return slices.Contains(p.sourceAllowed, rule.Policy.Source)
+}
+
 // KillAndReport kill and report
 func (p *ProcessKiller) KillAndReport(scope string, signal string, rule *rules.Rule, ev *model.Event, killFnc func(pid uint32, sig uint32) error) {
+	if !p.isRuleAllowed(rule) {
+		log.Warnf("unable to kill, the source is not allowed: %v", rule)
+		return
+	}
+
 	entry, exists := ev.ResolveProcessCacheEntry()
 	if !exists {
 		return
