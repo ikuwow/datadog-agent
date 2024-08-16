@@ -183,8 +183,6 @@ type (
 	ConfigurationProviders = pkgconfigsetup.ConfigurationProviders
 	// Listeners Alias
 	Listeners = pkgconfigsetup.Listeners
-	// MappingProfile Alias
-	MappingProfile = pkgconfigsetup.MappingProfile
 )
 
 // GetObsPipelineURL Alias using Datadog config
@@ -220,11 +218,6 @@ func GetBindHostFromConfig(config model.Reader) string {
 // GetBindHost Alias using Datadog config
 func GetBindHost() string {
 	return pkgconfigsetup.GetBindHost(Datadog())
-}
-
-// GetDogstatsdMappingProfiles Alias using Datadog config
-func GetDogstatsdMappingProfiles() ([]MappingProfile, error) {
-	return pkgconfigsetup.GetDogstatsdMappingProfiles(Datadog())
 }
 
 var (

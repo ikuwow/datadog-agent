@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	pkgconfigmodel "github.com/DataDog/datadog-agent/pkg/config/model"
 )
@@ -192,8 +193,6 @@ func TestProcessConfigPrefixes(t *testing.T) {
 }
 
 func TestEnvVarOverride(t *testing.T) {
-	cfg := Conf()
-
 	for _, tc := range []struct {
 		key, env, value string
 		expType         string
@@ -456,6 +455,11 @@ func TestEnvVarOverride(t *testing.T) {
 	} {
 		t.Run(tc.env, func(t *testing.T) {
 			t.Setenv(tc.env, tc.value)
+
+			cfg := Conf()
+			_, err := LoadWithoutSecret(cfg, nil)
+			require.NoError(t, err)
+
 			assert.Equal(t, tc.expected, readCfgWithType(cfg, tc.key, tc.expType))
 		})
 
@@ -464,11 +468,17 @@ func TestEnvVarOverride(t *testing.T) {
 			env := strings.Replace(tc.env, "PROCESS_CONFIG", "PROCESS_AGENT", 1)
 			t.Run(env, func(t *testing.T) {
 				t.Setenv(env, tc.value)
+
+				cfg := Conf()
+				_, err := LoadWithoutSecret(cfg, nil)
+				require.NoError(t, err)
+
 				assert.Equal(t, tc.expected, readCfgWithType(cfg, tc.key, tc.expType))
 			})
 		}
 	}
 
+	cfg := Conf()
 	// StringMapStringSlice can't be converted by `Config.Get` so we need to test this separately
 	t.Run("DD_PROCESS_CONFIG_ADDITIONAL_ENDPOINTS", func(t *testing.T) {
 		t.Setenv("DD_PROCESS_CONFIG_ADDITIONAL_ENDPOINTS", `{"https://process.datadoghq.com": ["fakeAPIKey"]}`)
