@@ -359,7 +359,6 @@ func registerCBCreator(mgr *manager.Manager, offsetsDataMap *ebpf.Map, probeIDs 
 		inspectionResult, err := bininspect.InspectNewProcessBinary(elfFile, functionsConfig, structFieldsLookupFunctions)
 		if err != nil {
 			if errors.Is(err, elf.ErrNoSymbols) {
-				log.Errorf("no symbols found in %s", filePath.HostPath)
 				binNoSymbolsMetric.Add(1)
 			}
 			return fmt.Errorf("error extracting inspectoin data from %s: %w", filePath.HostPath, err)

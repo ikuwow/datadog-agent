@@ -230,7 +230,7 @@ func GetAllSymbolsByName(elfFile *elf.File, symbolSet common.StringSet) (map[str
 		return nil, elf.ErrNoSymbols
 	}
 	if regularSymbolsErr != nil && dynamicSymbolsErr != nil {
-		return nil, fmt.Errorf("could not open symbol sections to resolve symbol offset: %w, %w", regularSymbolsErr, dynamicSymbolsErr)
+		return nil, fmt.Errorf("could not open symbol sections to resolve symbol offset: %v, %v", regularSymbolsErr, dynamicSymbolsErr)
 	}
 
 	symbolByName := make(map[string]elf.Symbol, len(regularSymbols)+len(dynamicSymbols))
