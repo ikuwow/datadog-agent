@@ -41,7 +41,7 @@ func CheckPath(path string) error {
 	return nil
 }
 
-// Connect to the system-probe service endpoint
+// DialSystemProbe connects to the system-probe service endpoint
 func DialSystemProbe(netType string, path string) (net.Conn, error) {
 	return net.Dial(netType, path)
 }

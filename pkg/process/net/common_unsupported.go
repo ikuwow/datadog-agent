@@ -71,7 +71,7 @@ func (r *RemoteSysProbeUtil) GetPprof(_ string) ([]byte, error) {
 	return nil, ErrNotImplemented
 }
 
-// Connect to the system-probe service endpoint
+// DialSystemProbe connects to the system-probe service endpoint
 func DialSystemProbe(netType string, path string) (net.Conn, error) {
 	return net.Dial(netType, path)
 }

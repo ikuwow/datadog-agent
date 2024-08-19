@@ -39,7 +39,7 @@ func newPipeListener(namedPipeName string) (net.Listener, error) {
 	return winio.ListenPipe(namedPipeName, &config)
 }
 
-// Sets up a named pipe listener for the system probe service.
+// NewSystemProbeListener sets up a named pipe listener for the system probe service.
 func NewSystemProbeListener(_ string) (*WindowsPipeListener, error) {
 	// socketAddr not used
 
@@ -62,7 +62,7 @@ func (wp *WindowsPipeListener) Stop() {
 	wp.conn.Close()
 }
 
-// Connect to the system-probe service endpoint
+// DialSystemProbe connects to the system-probe service endpoint
 func DialSystemProbe(_ string, _ string) (net.Conn, error) {
 	// Unused netType and path
 

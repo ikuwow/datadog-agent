@@ -24,18 +24,19 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics/event"
 
-	//process_net "github.com/DataDog/datadog-agent/pkg/process/net"
+	process_net "github.com/DataDog/datadog-agent/pkg/process/net"
 
 	"golang.org/x/sys/windows/registry"
 )
 
 func createSystemProbeListener() (l net.Listener, close func()) {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	// No socket address. Windows uses a fixed name pipe
+	conn, err := process_net.NewSystemProbeListener("")
 	if err != nil {
 		panic(err)
 	}
-	return l, func() {
-		_ = l.Close()
+	return conn.GetListener(), func() {
+		_ = conn.GetListener().Close()
 	}
 }
 
