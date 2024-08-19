@@ -7,12 +7,14 @@
 package mock
 
 import (
+	"bytes"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/config/setup"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -70,6 +72,15 @@ func New(t testing.TB) model.Config {
 	setup.SetDatadog(newCfg)
 	setup.InitConfig(newCfg)
 	return &mockConfig{newCfg}
+}
+
+// NewFromYAML creates a mock for the config and load the give YAML
+func NewFromYAML(t testing.TB, yamlData string) model.Config {
+	conf := New(t)
+	conf.SetConfigType("yaml")
+	err := conf.ReadConfig(bytes.NewBuffer([]byte(yamlData)))
+	require.NoError(t, err)
+	return conf
 }
 
 // NewSystemProbe creates a mock for the system-probe config
