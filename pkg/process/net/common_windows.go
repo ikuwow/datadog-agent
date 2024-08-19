@@ -29,7 +29,7 @@ const (
 	// pingURL is not used in windows, the value is added to avoid compilation error in windows
 	pingURL = "http://localhost:3333/" + string(sysconfig.PingModule) + "/ping/"
 
-	// Named pipe for system-probe
+	// SystemProbePipeName is the named pipe for system-probe
 	SystemProbePipeName = `\\.\pipe\dd_system_probe`
 )
 
