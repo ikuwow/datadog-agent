@@ -10,13 +10,15 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/DataDog/datadog-agent/pkg/util/testutil/flake"
 	"net"
 	"runtime"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/DataDog/datadog-agent/pkg/config/env"
+	"github.com/DataDog/datadog-agent/pkg/util/testutil/flake"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,7 +79,7 @@ func fulfillDeps(t testing.TB) serverDeps {
 	return fulfillDepsWithConfigOverride(t, map[string]interface{}{})
 }
 
-func fulfillDepsWithConfigOverrideAndFeatures(t testing.TB, overrides map[string]interface{}, features []config.Feature) serverDeps {
+func fulfillDepsWithConfigOverrideAndFeatures(t testing.TB, overrides map[string]interface{}, features []env.Feature) serverDeps {
 
 	// TODO: https://datadoghq.atlassian.net/browse/AMLII-1948
 	if runtime.GOOS == "darwin" {
@@ -684,7 +686,7 @@ func TestExtraTags(t *testing.T) {
 	cfg["dogstatsd_port"] = listeners.RandomPortName
 	cfg["dogstatsd_tags"] = []string{"sometag3:somevalue3"}
 
-	deps := fulfillDepsWithConfigOverrideAndFeatures(t, cfg, []config.Feature{config.EKSFargate})
+	deps := fulfillDepsWithConfigOverrideAndFeatures(t, cfg, []env.Feature{env.EKSFargate})
 
 	demux := deps.Demultiplexer
 	requireStart(t, deps.Server)
@@ -713,7 +715,7 @@ func TestStaticTags(t *testing.T) {
 	cfg["dogstatsd_tags"] = []string{"sometag3:somevalue3"}
 	cfg["tags"] = []string{"from:dd_tags"}
 
-	deps := fulfillDepsWithConfigOverrideAndFeatures(t, cfg, []config.Feature{config.EKSFargate})
+	deps := fulfillDepsWithConfigOverrideAndFeatures(t, cfg, []env.Feature{env.EKSFargate})
 
 	demux := deps.Demultiplexer
 	requireStart(t, deps.Server)

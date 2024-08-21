@@ -36,6 +36,7 @@ import (
 	flareController "github.com/DataDog/datadog-agent/comp/logs/agent/flare"
 	"github.com/DataDog/datadog-agent/comp/metadata/inventoryagent/inventoryagentimpl"
 	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/config/env"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/http"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/mock"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/tcp"
@@ -140,7 +141,7 @@ func createAgent(suite *AgentTestSuite, endpoints *config.Endpoints) (*logAgent,
 }
 
 func (suite *AgentTestSuite) testAgent(endpoints *config.Endpoints) {
-	coreConfig.SetFeatures(suite.T(), coreConfig.Docker, coreConfig.Kubernetes)
+	coreConfig.SetFeatures(suite.T(), env.Docker, env.Kubernetes)
 
 	agent, sources, _ := createAgent(suite, endpoints)
 
@@ -187,7 +188,7 @@ func (suite *AgentTestSuite) TestAgentStopsWithWrongBackendTcp() {
 	endpoint := config.NewEndpoint("", "fake:", 0, false)
 	endpoints := config.NewEndpoints(endpoint, []config.Endpoint{}, true, false)
 
-	coreConfig.SetFeatures(suite.T(), coreConfig.Docker, coreConfig.Kubernetes)
+	coreConfig.SetFeatures(suite.T(), env.Docker, env.Kubernetes)
 
 	agent, sources, _ := createAgent(suite, endpoints)
 
