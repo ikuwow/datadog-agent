@@ -38,8 +38,6 @@ import (
 const commonRegistry = "gcr.io/datadoghq"
 
 func TestInjectAutoInstruConfigV2(t *testing.T) {
-	c := configmock.New(t)
-
 	tests := []struct {
 		name                  string
 		pod                   *corev1.Pod
@@ -48,7 +46,7 @@ func TestInjectAutoInstruConfigV2(t *testing.T) {
 		expectedLangsDetected string
 		expectedInstallType   string
 		wantErr               bool
-		config                func()
+		config                func(c model.Config)
 	}{
 		{
 			name: "no libs, no injection",
@@ -112,7 +110,7 @@ func TestInjectAutoInstruConfigV2(t *testing.T) {
 					java.libInfo("", "gcr.io/datadoghq/dd-lib-java-init:v1"),
 				},
 			},
-			config: func() {
+			config: func(c model.Config) {
 				c.SetWithoutSource("apm_config.instrumentation.injector_image_tag", "0.16-1")
 			},
 		},
@@ -133,7 +131,7 @@ func TestInjectAutoInstruConfigV2(t *testing.T) {
 				},
 				source: libInfoSourceLibInjection,
 			},
-			config: func() {
+			config: func(c model.Config) {
 				c.SetWithoutSource("apm_config.instrumentation.injector_image_tag", "0.16-1")
 			},
 		},
@@ -181,7 +179,7 @@ func TestInjectAutoInstruConfigV2(t *testing.T) {
 				},
 				source: libInfoSourceSingleStepLangaugeDetection,
 			},
-			config: func() {
+			config: func(c model.Config) {
 				c.SetWithoutSource("apm_config.instrumentation.injector_image_tag", "0.16-1")
 			},
 		},
@@ -191,10 +189,11 @@ func TestInjectAutoInstruConfigV2(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			wmeta := common.FakeStoreWithDeployment(t, nil)
 
-			c = configmock.New(t)
+			c := configmock.New(t)
+
 			c.SetWithoutSource("apm_config.instrumentation.version", "v2")
 			if tt.config != nil {
-				tt.config()
+				tt.config(c)
 			}
 
 			webhook := mustWebhook(t, wmeta)
@@ -532,9 +531,14 @@ func TestInjectAutoInstruConfig(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	wmeta := fxutil.Test[workloadmeta.Component](t, core.MockBundle(), workloadmetafxmock.MockModule(), fx.Supply(workloadmeta.NewParams()))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			wmeta := fxutil.Test[workloadmeta.Component](t,
+				core.MockBundle(),
+				workloadmetafxmock.MockModule(),
+				fx.Supply(workloadmeta.NewParams()),
+			)
+
 			c := configmock.New(t)
 			c.SetWithoutSource("apm_config.instrumentation.version", "v1")
 
@@ -1183,9 +1187,14 @@ func TestInjectLibInitContainer(t *testing.T) {
 		},
 	}
 
-	wmeta := fxutil.Test[workloadmeta.Component](t, core.MockBundle(), workloadmetafxmock.MockModule(), fx.Supply(workloadmeta.NewParams()))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			wmeta := fxutil.Test[workloadmeta.Component](t,
+				core.MockBundle(),
+				workloadmetafxmock.MockModule(),
+				fx.Supply(workloadmeta.NewParams()),
+			)
+
 			conf := configmock.New(t)
 			if tt.cpu != "" {
 				conf.SetWithoutSource("admission_controller.auto_instrumentation.init_resources.cpu", tt.cpu)
@@ -2984,7 +2993,7 @@ func TestShouldInject(t *testing.T) {
 			want:        false,
 		},
 		{
-			name: "instrumentation on with disabled namespace, no label",
+			name: "instrumentation on with disabled namespace, no label ns",
 			pod:  common.FakePodWithNamespaceAndLabel("ns", "", ""),
 			setupConfig: func() {
 				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
@@ -2993,7 +3002,7 @@ func TestShouldInject(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "instrumentation on with disabled namespace, no label",
+			name: "instrumentation on with disabled namespace, no label ns2",
 			pod:  common.FakePodWithNamespaceAndLabel("ns2", "", ""),
 			setupConfig: func() {
 				mockConfig.SetWithoutSource("apm_config.instrumentation.enabled", true)
@@ -3136,9 +3145,14 @@ func TestShouldInject(t *testing.T) {
 			want:        false,
 		},
 	}
-	wmeta := fxutil.Test[workloadmeta.Component](t, core.MockBundle(), workloadmetafxmock.MockModule(), fx.Supply(workloadmeta.NewParams()))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			wmeta := fxutil.Test[workloadmeta.Component](t,
+				core.MockBundle(),
+				workloadmetafxmock.MockModule(),
+				fx.Supply(workloadmeta.NewParams()),
+			)
+
 			mockConfig = configmock.New(t)
 			tt.setupConfig()
 
