@@ -195,7 +195,7 @@ func (t *Tagger) GetTaggerTelemetryStore() *telemetry.Store {
 }
 
 // Tag returns tags for a given entity at the desired cardinality.
-func (t *Tagger) Tag(entityID string, cardinality types.TagCardinality) ([]string, error) {
+func (t *Tagger) Tag(entityID types.EntityID, cardinality types.TagCardinality) ([]string, error) {
 	entity := t.store.getEntity(entityID)
 	if entity != nil {
 		t.telemetryStore.QueriesByCardinality(cardinality).Success.Inc()
@@ -208,7 +208,7 @@ func (t *Tagger) Tag(entityID string, cardinality types.TagCardinality) ([]strin
 }
 
 // AccumulateTagsFor returns tags for a given entity at the desired cardinality.
-func (t *Tagger) AccumulateTagsFor(entityID string, cardinality types.TagCardinality, tb tagset.TagsAccumulator) error {
+func (t *Tagger) AccumulateTagsFor(entityID types.EntityID, cardinality types.TagCardinality, tb tagset.TagsAccumulator) error {
 	tags, err := t.Tag(entityID, cardinality)
 	if err != nil {
 		return err
@@ -218,7 +218,7 @@ func (t *Tagger) AccumulateTagsFor(entityID string, cardinality types.TagCardina
 }
 
 // Standard returns the standard tags for a given entity.
-func (t *Tagger) Standard(entityID string) ([]string, error) {
+func (t *Tagger) Standard(entityID types.EntityID) ([]string, error) {
 	entity := t.store.getEntity(entityID)
 	if entity == nil {
 		return []string{}, nil
@@ -228,7 +228,7 @@ func (t *Tagger) Standard(entityID string) ([]string, error) {
 }
 
 // GetEntity returns the entity corresponding to the specified id and an error
-func (t *Tagger) GetEntity(entityID string) (*types.Entity, error) {
+func (t *Tagger) GetEntity(entityID types.EntityID) (*types.Entity, error) {
 	entity := t.store.getEntity(entityID)
 	if entity == nil {
 		return nil, fmt.Errorf("Entity not found for entityID")
@@ -241,15 +241,15 @@ func (t *Tagger) GetEntity(entityID string) (*types.Entity, error) {
 func (t *Tagger) List() types.TaggerListResponse {
 	entities := t.store.listEntities()
 	resp := types.TaggerListResponse{
-		Entities: make(map[string]types.TaggerListEntity),
+		Entities: types.NewObjectStore[types.TaggerListEntity](),
 	}
 
 	for _, e := range entities {
-		resp.Entities[e.ID] = types.TaggerListEntity{
+		resp.Entities.Set(e.ID, types.TaggerListEntity{
 			Tags: map[string][]string{
 				remoteSource: e.GetTags(types.HighCardinality),
 			},
-		}
+		})
 	}
 
 	return resp
@@ -339,7 +339,7 @@ func (t *Tagger) processResponse(response *pb.StreamTagsResponse) error {
 		events = append(events, types.EntityEvent{
 			EventType: eventType,
 			Entity: types.Entity{
-				ID:                          convertEntityID(entity.Id),
+				ID:                          types.NewEntityID(types.EntityIDPrefix(entity.Id.Prefix), entity.Id.Uid),
 				HighCardinalityTags:         entity.HighCardinalityTags,
 				OrchestratorCardinalityTags: entity.OrchestratorCardinalityTags,
 				LowCardinalityTags:          entity.LowCardinalityTags,
@@ -417,10 +417,6 @@ func convertEventType(t pb.EventType) (types.EventType, error) {
 	}
 
 	return types.EventTypeAdded, fmt.Errorf("unknown event type: %q", t)
-}
-
-func convertEntityID(id *pb.EntityId) string {
-	return fmt.Sprintf("%s://%s", id.Prefix, id.Uid)
 }
 
 // TODO(components): verify the grpclog is initialized elsewhere and cleanup

@@ -16,7 +16,8 @@ import (
 
 // TaggerListResponse holds the tagger list response
 type TaggerListResponse struct {
-	Entities map[string]TaggerListEntity `json:"entities"`
+	// Entities map[EntityIDPrefix]map[string]TaggerListEntity `json:"entities"`
+	Entities ObjectStore[TaggerListEntity]
 }
 
 // TaggerListEntity holds the tagging info about an entity
@@ -28,7 +29,7 @@ type TaggerListEntity struct {
 // to be created from collectors and read by the store.
 type TagInfo struct {
 	Source               string    // source collector's name
-	Entity               string    // entity name ready for lookup
+	EntityID             EntityID  // entity id for lookup
 	HighCardTags         []string  // high cardinality tags that can create a lot of different timeseries (typically one per container, user request, etc.)
 	OrchestratorCardTags []string  // orchestrator cardinality tags that have as many combination as pods/tasks
 	LowCardTags          []string  // low cardinality tags safe for every pipeline
@@ -60,9 +61,51 @@ const (
 	HighCardinality
 )
 
+// EntityID represents an ID of a tagger entity
+type EntityID struct {
+	Prefix EntityIDPrefix
+	ID     string
+}
+
+// GetPrefix returns the prefix of the entity id
+func (eid EntityID) GetPrefix() EntityIDPrefix {
+	return eid.Prefix
+}
+
+// GetID returns the id of the entity id
+func (eid EntityID) GetID() string {
+	return eid.ID
+}
+
+// String returns a string representation of EntityID as `{prefix}://{id}`
+func (eid EntityID) String() string {
+	return eid.Prefix.ToUID(eid.ID)
+}
+
+// NewEntityID returns a new EntityID based on a prefix and an id
+func NewEntityID(prefix EntityIDPrefix, id string) EntityID {
+	return EntityID{
+		Prefix: prefix,
+		ID:     id,
+	}
+}
+
+// NewEntityIDFromSring returns a new EntityID based on a string id
+// The string id is supposed to be in the format `{prefix}://{id}`
+// If the string id doesn't respect the format, a non-nil error is returned
+func NewEntityIDFromSring(planeStringUID string) (EntityID, error) {
+	parts := strings.Split(planeStringUID, "://")
+
+	if len(parts) != 2 {
+		return EntityID{}, fmt.Errorf("incorrect format for tagger entity id %q, the entity id should be in the format `{prefix}://{id}`", planeStringUID)
+	}
+
+	return NewEntityID(EntityIDPrefix(parts[0]), parts[1]), nil
+}
+
 // Entity is an entity ID + tags.
 type Entity struct {
-	ID                          string
+	ID                          EntityID
 	HighCardinalityTags         []string
 	OrchestratorCardinalityTags []string
 	LowCardinalityTags          []string

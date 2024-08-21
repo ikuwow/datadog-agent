@@ -37,7 +37,7 @@ func UnlockGlobalTaggerClient() {
 }
 
 // GetEntity returns the hash for the provided entity id.
-func GetEntity(entityID string) (*types.Entity, error) {
+func GetEntity(entityID types.EntityID) (*types.Entity, error) {
 	if globalTagger == nil {
 		return nil, fmt.Errorf("a global tagger must be set before calling GetEntity")
 	}
@@ -45,7 +45,7 @@ func GetEntity(entityID string) (*types.Entity, error) {
 }
 
 // Tag is an interface function that queries taggerclient singleton
-func Tag(entity string, cardinality types.TagCardinality) ([]string, error) {
+func Tag(entity types.EntityID, cardinality types.TagCardinality) ([]string, error) {
 	if globalTagger == nil {
 		return nil, fmt.Errorf("a global tagger must be set before calling Tag")
 	}
@@ -53,19 +53,19 @@ func Tag(entity string, cardinality types.TagCardinality) ([]string, error) {
 }
 
 // GetEntityHash is an interface function that queries taggerclient singleton
-func GetEntityHash(entity string, cardinality types.TagCardinality) string {
+func GetEntityHash(entityID types.EntityID, cardinality types.TagCardinality) string {
 	if globalTagger != nil {
-		return globalTagger.GetEntityHash(entity, cardinality)
+		return globalTagger.GetEntityHash(entityID, cardinality)
 	}
 	return ""
 }
 
 // StandardTags is an interface function that queries taggerclient singleton
-func StandardTags(entity string) ([]string, error) {
+func StandardTags(entityID types.EntityID) ([]string, error) {
 	if globalTagger == nil {
 		return nil, fmt.Errorf("a global tagger must be set before calling StandardTags")
 	}
-	return globalTagger.Standard(entity)
+	return globalTagger.Standard(entityID)
 }
 
 // AgentTags is an interface function that queries taggerclient singleton

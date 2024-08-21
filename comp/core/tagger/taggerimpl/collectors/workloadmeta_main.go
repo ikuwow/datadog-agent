@@ -51,7 +51,7 @@ type processor interface {
 // store.
 type WorkloadMetaCollector struct {
 	store        workloadmeta.Component
-	children     map[string]map[string]struct{}
+	children     map[types.EntityID]map[types.EntityID]struct{}
 	tagProcessor processor
 
 	containerEnvAsTags    map[string]string
@@ -119,7 +119,7 @@ func (c *WorkloadMetaCollector) collectStaticGlobalTags(ctx context.Context) {
 		c.tagProcessor.ProcessTagInfo([]*types.TagInfo{
 			{
 				Source:               staticSource,
-				Entity:               GlobalEntityID,
+				EntityID:             GlobalEntityID,
 				HighCardTags:         high,
 				OrchestratorCardTags: orch,
 				LowCardTags:          low,
@@ -168,7 +168,7 @@ func NewWorkloadMetaCollector(_ context.Context, store workloadmeta.Component, p
 	c := &WorkloadMetaCollector{
 		tagProcessor:                      p,
 		store:                             store,
-		children:                          make(map[string]map[string]struct{}),
+		children:                          make(map[types.EntityID]map[types.EntityID]struct{}),
 		collectEC2ResourceTags:            config.Datadog().GetBool("ecs_collect_resource_tags_ec2"),
 		collectPersistentVolumeClaimsTags: config.Datadog().GetBool("kubernetes_persistent_volume_claims_as_tags"),
 	}

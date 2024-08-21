@@ -28,6 +28,8 @@ import (
 
 func TestTagBuilder(t *testing.T) {
 
+	entityID := types.NewEntityID("", "entity_name")
+
 	store := fxutil.Test[workloadmetamock.Mock](t, fx.Options(
 		fx.Supply(config.Params{}),
 		fx.Supply(log.Params{}),
@@ -45,20 +47,20 @@ func TestTagBuilder(t *testing.T) {
 
 	tagger.tagStore.ProcessTagInfo([]*types.TagInfo{
 		{
-			Entity:       "entity_name",
+			EntityID:     entityID,
 			Source:       "stream",
 			LowCardTags:  []string{"low1"},
 			HighCardTags: []string{"high"},
 		},
 		{
-			Entity:      "entity_name",
+			EntityID:    entityID,
 			Source:      "pull",
 			LowCardTags: []string{"low2"},
 		},
 	})
 
 	tb := tagset.NewHashlessTagsAccumulator()
-	err := tagger.AccumulateTagsFor("entity_name", types.HighCardinality, tb)
+	err := tagger.AccumulateTagsFor(entityID, types.HighCardinality, tb)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{"high", "low1", "low2"}, tb.Get())
 }

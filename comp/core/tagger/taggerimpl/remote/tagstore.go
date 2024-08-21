@@ -11,14 +11,13 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/tagger/taggerimpl/subscriber"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/telemetry"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
-	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
 
 const remoteSource = "remote"
 
 type tagStore struct {
 	mutex     sync.RWMutex
-	store     map[string]*types.Entity
+	store     types.ObjectStore[*types.Entity]
 	telemetry map[string]float64
 
 	subscriber     *subscriber.Subscriber
@@ -27,7 +26,7 @@ type tagStore struct {
 
 func newTagStore(telemetryStore *telemetry.Store) *tagStore {
 	return &tagStore{
-		store:          make(map[string]*types.Entity),
+		store:          types.NewObjectStore[*types.Entity](),
 		telemetry:      make(map[string]float64),
 		subscriber:     subscriber.NewSubscriber(telemetryStore),
 		telemetryStore: telemetryStore,
@@ -48,14 +47,14 @@ func (s *tagStore) processEvents(events []types.EntityEvent, replace bool) error
 		switch event.EventType {
 		case types.EventTypeAdded:
 			s.telemetryStore.UpdatedEntities.Inc()
-			s.store[event.Entity.ID] = &entity
+			s.store.Set(event.Entity.ID, &entity)
 
 		case types.EventTypeModified:
 			s.telemetryStore.UpdatedEntities.Inc()
-			s.store[event.Entity.ID] = &entity
+			s.store.Set(event.Entity.ID, &entity)
 
 		case types.EventTypeDeleted:
-			delete(s.store, event.Entity.ID)
+			s.store.Unset(event.Entity.ID)
 		}
 	}
 
@@ -64,23 +63,21 @@ func (s *tagStore) processEvents(events []types.EntityEvent, replace bool) error
 	return nil
 }
 
-func (s *tagStore) getEntity(entityID string) *types.Entity {
+func (s *tagStore) getEntity(entityID types.EntityID) *types.Entity {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	return s.store[entityID]
+	if entity, present := s.store.Get(entityID); present {
+		return entity
+	}
+
+	return nil
 }
 
 func (s *tagStore) listEntities() []*types.Entity {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	entities := make([]*types.Entity, 0, len(s.store))
-
-	for _, e := range s.store {
-		entities = append(entities, e)
-	}
-
-	return entities
+	return s.store.ListObjects()
 }
 
 func (s *tagStore) collectTelemetry() {
@@ -92,10 +89,7 @@ func (s *tagStore) collectTelemetry() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	for _, entity := range s.store {
-		prefix, _ := containers.SplitEntityName(entity.ID)
-		s.telemetry[prefix]++
-	}
+	s.store.ForEach(func(_ types.EntityIDPrefix, _ string, e *types.Entity) { s.telemetry[string(e.ID.GetPrefix())]++ })
 
 	for prefix, storedEntities := range s.telemetry {
 		s.telemetryStore.StoredEntities.Set(storedEntities, remoteSource, prefix)
@@ -107,14 +101,14 @@ func (s *tagStore) subscribe(cardinality types.TagCardinality) chan []types.Enti
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	events := make([]types.EntityEvent, 0, len(s.store))
+	events := make([]types.EntityEvent, 0, s.store.Size())
 
-	for _, e := range s.store {
+	s.store.ForEach(func(_ types.EntityIDPrefix, _ string, e *types.Entity) {
 		events = append(events, types.EntityEvent{
 			EventType: types.EventTypeAdded,
 			Entity:    *e,
 		})
-	}
+	})
 
 	return s.subscriber.Subscribe(cardinality, events)
 }
@@ -134,20 +128,20 @@ func (s *tagStore) notifySubscribers(events []types.EntityEvent) {
 // NOTE: caller must ensure that it holds s.mutex's lock, as this func does not
 // do it on its own.
 func (s *tagStore) reset() {
-	if len(s.store) == 0 {
+	if s.store.Size() == 0 {
 		return
 	}
 
-	events := make([]types.EntityEvent, 0, len(s.store))
+	events := make([]types.EntityEvent, 0, s.store.Size())
 
-	for _, e := range s.store {
+	s.store.ForEach(func(_ types.EntityIDPrefix, _ string, e *types.Entity) {
 		events = append(events, types.EntityEvent{
 			EventType: types.EventTypeDeleted,
 			Entity:    types.Entity{ID: e.ID},
 		})
-	}
+	})
 
 	s.notifySubscribers(events)
 
-	s.store = make(map[string]*types.Entity)
+	s.store = types.NewObjectStore[*types.Entity]()
 }

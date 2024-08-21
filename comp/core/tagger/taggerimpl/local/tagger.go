@@ -71,28 +71,28 @@ func (t *Tagger) Stop() error {
 }
 
 // getTags returns a read only list of tags for a given entity.
-func (t *Tagger) getTags(entity string, cardinality types.TagCardinality) (tagset.HashedTags, error) {
-	if entity == "" {
+func (t *Tagger) getTags(entityID types.EntityID, cardinality types.TagCardinality) (tagset.HashedTags, error) {
+	if entityID.GetID() == "" {
 		t.telemetryStore.QueriesByCardinality(cardinality).EmptyEntityID.Inc()
 		return tagset.HashedTags{}, fmt.Errorf("empty entity ID")
 	}
 
-	cachedTags := t.tagStore.LookupHashed(entity, cardinality)
+	cachedTags := t.tagStore.LookupHashed(entityID, cardinality)
 
 	t.telemetryStore.QueriesByCardinality(cardinality).Success.Inc()
 	return cachedTags, nil
 }
 
 // AccumulateTagsFor appends tags for a given entity from the tagger to the TagsAccumulator
-func (t *Tagger) AccumulateTagsFor(entity string, cardinality types.TagCardinality, tb tagset.TagsAccumulator) error {
-	tags, err := t.getTags(entity, cardinality)
+func (t *Tagger) AccumulateTagsFor(entityID types.EntityID, cardinality types.TagCardinality, tb tagset.TagsAccumulator) error {
+	tags, err := t.getTags(entityID, cardinality)
 	tb.AppendHashed(tags)
 	return err
 }
 
 // Tag returns a copy of the tags for a given entity
-func (t *Tagger) Tag(entity string, cardinality types.TagCardinality) ([]string, error) {
-	tags, err := t.getTags(entity, cardinality)
+func (t *Tagger) Tag(entityID types.EntityID, cardinality types.TagCardinality) ([]string, error) {
+	tags, err := t.getTags(entityID, cardinality)
 	if err != nil {
 		return nil, err
 	}
@@ -101,16 +101,16 @@ func (t *Tagger) Tag(entity string, cardinality types.TagCardinality) ([]string,
 
 // Standard returns standard tags for a given entity
 // It triggers a tagger fetch if the no tags are found
-func (t *Tagger) Standard(entity string) ([]string, error) {
-	if entity == "" {
+func (t *Tagger) Standard(entityID types.EntityID) ([]string, error) {
+	if entityID.GetID() == "" {
 		return nil, fmt.Errorf("empty entity ID")
 	}
 
-	return t.tagStore.LookupStandard(entity)
+	return t.tagStore.LookupStandard(entityID)
 }
 
 // GetEntity returns the entity corresponding to the specified id and an error
-func (t *Tagger) GetEntity(entityID string) (*types.Entity, error) {
+func (t *Tagger) GetEntity(entityID types.EntityID) (*types.Entity, error) {
 	return t.tagStore.GetEntity(entityID)
 }
 

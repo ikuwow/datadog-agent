@@ -15,12 +15,13 @@ import (
 )
 
 const (
-	testEntityID  = "testEntityID"
 	testSource    = "testSource"
 	invalidSource = "invalidSource"
 )
 
 func TestToEntity(t *testing.T) {
+	testEntityID := types.NewEntityID("", "testEntityID")
+
 	entityTags := newEntityTagsWithSingleSource(testEntityID, testSource)
 
 	entityTags.setTagsForSource(testSource, sourceTags{
@@ -49,6 +50,8 @@ func TestToEntity(t *testing.T) {
 }
 
 func TestGetStandard(t *testing.T) {
+	testEntityID := types.NewEntityID("", "testEntityID")
+
 	entityTags := newEntityTagsWithSingleSource(testEntityID, testSource)
 
 	entityTags.setTagsForSource(testSource, sourceTags{
@@ -68,6 +71,8 @@ func TestGetStandard(t *testing.T) {
 }
 
 func TestGetHashedTags(t *testing.T) {
+	testEntityID := types.NewEntityID("", "testEntityID")
+
 	entityTags := newEntityTagsWithSingleSource(testEntityID, testSource)
 
 	entityTags.setTagsForSource(testSource, sourceTags{
@@ -102,6 +107,8 @@ func TestGetHashedTags(t *testing.T) {
 }
 
 func TestTagsForSource(t *testing.T) {
+	testEntityID := types.NewEntityID("", "testEntityID")
+
 	entityTags := newEntityTagsWithSingleSource(testEntityID, testSource)
 
 	entityTags.setTagsForSource(testSource, sourceTags{
@@ -126,6 +133,8 @@ func TestTagsForSource(t *testing.T) {
 }
 
 func TestTagsBySource(t *testing.T) {
+	testEntityID := types.NewEntityID("", "testEntityID")
+
 	entityTags := newEntityTagsWithSingleSource(testEntityID, testSource)
 
 	entityTags.setTagsForSource(testSource, sourceTags{
@@ -149,6 +158,8 @@ func TestTagsBySource(t *testing.T) {
 }
 
 func TestSources(t *testing.T) {
+	testEntityID := types.NewEntityID("", "testEntityID")
+
 	entityTags := newEntityTagsWithSingleSource(testEntityID, testSource)
 
 	entityTags.setTagsForSource(testSource, sourceTags{
@@ -164,6 +175,8 @@ func TestSources(t *testing.T) {
 }
 
 func TestDeleteSource(t *testing.T) {
+	testEntityID := types.NewEntityID("", "testEntityID")
+
 	expiryDate := time.Now().Add(time.Hour)
 
 	entityTags := newEntityTagsWithSingleSource(testEntityID, testSource)
@@ -181,6 +194,8 @@ func TestDeleteSource(t *testing.T) {
 }
 
 func TestDeleteExpired(t *testing.T) {
+	testEntityID := types.NewEntityID("", "testEntityID")
+
 	expiryDate := time.Now()
 
 	tests := []struct {

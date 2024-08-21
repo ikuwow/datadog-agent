@@ -17,9 +17,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
-const (
-	entityID        = "foo://bar"
-	anotherEntityID = "foo://quux"
+var (
+	entityID        types.EntityID = types.NewEntityID("foo", "bar")
+	anotherEntityID types.EntityID = types.NewEntityID("foo", "quux")
 )
 
 func TestProcessEvent_AddAndModify(t *testing.T) {

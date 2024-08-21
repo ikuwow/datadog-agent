@@ -62,13 +62,13 @@ func (t *Tagger) Stop() error {
 }
 
 // Tag returns tags for a given entity at the desired cardinality.
-func (t *Tagger) Tag(entityID string, cardinality types.TagCardinality) ([]string, error) {
+func (t *Tagger) Tag(entityID types.EntityID, cardinality types.TagCardinality) ([]string, error) {
 	tags := t.store.Lookup(entityID, cardinality)
 	return tags, nil
 }
 
 // AccumulateTagsFor returns tags for a given entity at the desired cardinality.
-func (t *Tagger) AccumulateTagsFor(entityID string, cardinality types.TagCardinality, tb tagset.TagsAccumulator) error {
+func (t *Tagger) AccumulateTagsFor(entityID types.EntityID, cardinality types.TagCardinality, tb tagset.TagsAccumulator) error {
 	tags := t.store.LookupHashed(entityID, cardinality)
 
 	if tags.Len() == 0 {
@@ -83,7 +83,7 @@ func (t *Tagger) AccumulateTagsFor(entityID string, cardinality types.TagCardina
 }
 
 // Standard returns the standard tags for a given entity.
-func (t *Tagger) Standard(entityID string) ([]string, error) {
+func (t *Tagger) Standard(entityID types.EntityID) ([]string, error) {
 	tags, err := t.store.LookupStandard(entityID)
 	if err != nil {
 		return []string{}, err
@@ -127,7 +127,7 @@ func (t *Tagger) LoadState(state []types.Entity) {
 	for _, entity := range state {
 		t.store.ProcessTagInfo([]*types.TagInfo{{
 			Source:               "replay",
-			Entity:               entity.ID,
+			EntityID:             entity.ID,
 			HighCardTags:         entity.HighCardinalityTags,
 			OrchestratorCardTags: entity.OrchestratorCardinalityTags,
 			LowCardTags:          entity.LowCardinalityTags,
@@ -140,6 +140,6 @@ func (t *Tagger) LoadState(state []types.Entity) {
 }
 
 // GetEntity returns the entity corresponding to the specified id and an error
-func (t *Tagger) GetEntity(entityID string) (*types.Entity, error) {
+func (t *Tagger) GetEntity(entityID types.EntityID) (*types.Entity, error) {
 	return t.store.GetEntity(entityID)
 }

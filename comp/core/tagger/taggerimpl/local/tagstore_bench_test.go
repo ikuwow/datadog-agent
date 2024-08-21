@@ -75,7 +75,7 @@ func BenchmarkTagStoreThroughput(b *testing.B) {
 
 		go func() {
 			for i := 0; i < 1000; i++ {
-				id := ids[rand.Intn(nEntities)]
+				id := types.NewEntityID("", ids[rand.Intn(nEntities)])
 				store.Lookup(id, types.HighCardinality)
 			}
 			wg.Done()
@@ -105,7 +105,7 @@ func generateRandomTagInfo() *types.TagInfo {
 	id := ids[rand.Intn(nEntities)]
 	source := sources[rand.Intn(nSources)]
 	return &types.TagInfo{
-		Entity:               id,
+		EntityID:             types.NewEntityID("", id),
 		Source:               source,
 		LowCardTags:          generateRandomTags(),
 		OrchestratorCardTags: generateRandomTags(),
