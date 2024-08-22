@@ -42,6 +42,8 @@ type helmConfig struct {
 	ProcessAgentEnabled        bool
 	ProcessCollection          bool
 	ProcessDiscoveryCollection bool
+	ContainerCollection        bool
+	RunInCoreAgent             bool
 }
 
 func createHelmValues(cfg helmConfig) (string, error) {
