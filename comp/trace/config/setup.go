@@ -23,6 +23,7 @@ import (
 
 	corecompcfg "github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
+	"github.com/DataDog/datadog-agent/comp/core/tagger/common"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
 	"github.com/DataDog/datadog-agent/comp/otelcol/otlp"
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -121,7 +122,7 @@ func prepareConfig(c corecompcfg.Component) (*config.AgentConfig, error) {
 }
 
 func containerTagsFunc(cid string) ([]string, error) {
-	return tagger.Tag("container_id://"+cid, types.HighCardinality)
+	return tagger.Tag(types.NewEntityID(common.ContainerID, cid), types.HighCardinality)
 }
 
 // appendEndpoints appends any endpoint configuration found at the given cfgKey.

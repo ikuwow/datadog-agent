@@ -44,7 +44,7 @@ func (ialp *infraAttributesLogProcessor) processLogs(_ context.Context, ld plog.
 		for _, entityID := range entityIDs {
 			entityTags, err := ialp.tagger.Tag(entityID, ialp.cardinality)
 			if err != nil {
-				ialp.logger.Error("Cannot get tags for entity", zap.String("entityID", entityID), zap.Error(err))
+				ialp.logger.Error("Cannot get tags for entity", zap.String("entityID", entityID.String()), zap.Error(err))
 				continue
 			}
 			for _, tag := range entityTags {

@@ -18,6 +18,8 @@ import (
 
 	dockerTypes "github.com/docker/docker/api/types"
 
+	"github.com/docker/docker/api/types/container"
+
 	"github.com/DataDog/datadog-agent/comp/core/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/comp/core/tagger"
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
@@ -35,7 +37,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/optional"
-	"github.com/docker/docker/api/types/container"
 )
 
 const (
