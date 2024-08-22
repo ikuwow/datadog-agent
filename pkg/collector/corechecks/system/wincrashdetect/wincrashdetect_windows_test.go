@@ -8,7 +8,6 @@
 package wincrashdetect
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 
@@ -70,8 +69,8 @@ func TestWinCrashReporting(t *testing.T) {
 	}
 	defer server.Close()
 
-	sock := fmt.Sprintf("localhost:%d", listener.Addr().(*net.TCPAddr).Port)
-	config.SystemProbe().SetWithoutSource("system_probe_config.sysprobe_socket", sock)
+	// no socket address is set in config for Windows since system probe
+	// utilizes a fixed named pipe.
 
 	/*
 	 * the underlying system probe connector is a singleton.  Therefore, we can't set up different
