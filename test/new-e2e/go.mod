@@ -264,3 +264,9 @@ require (
 )
 
 require github.com/hairyhenderson/go-codeowners v0.5.0
+
+require (
+	github.com/pulumi/pulumi-azure-native-sdk/compute/v2 v2.56.0 // indirect
+	github.com/pulumi/pulumi-azure-native-sdk/network/v2 v2.30.0 // indirect
+	github.com/pulumi/pulumi-azure-native-sdk/v2 v2.56.0 // indirect
+)
