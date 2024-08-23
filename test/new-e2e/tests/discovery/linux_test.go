@@ -86,7 +86,17 @@ func (s *linuxTestSuite) TestServiceDiscoveryCheck() {
 			}
 		}
 
-		found := foundMap["python.server"]
+		found := foundMap["node-svc"]
+		if assert.NotNil(c, found) {
+			assert.Equal(c, "none", found.Payload.APMInstrumentation)
+		}
+
+		found = foundMap["node-instrumented"]
+		if assert.NotNil(c, found) {
+			assert.Equal(c, "provided", found.Payload.APMInstrumentation)
+		}
+
+		found = foundMap["python.server"]
 		if assert.NotNil(c, found) {
 			assert.Equal(c, "none", found.Payload.APMInstrumentation)
 		}
@@ -131,11 +141,15 @@ func (s *linuxTestSuite) provisionServer() {
 }
 
 func (s *linuxTestSuite) startServices() {
+	s.Env().RemoteHost.MustExecute("sudo systemctl start node-svc")
+	s.Env().RemoteHost.MustExecute("sudo systemctl start node-instrumented")
 	s.Env().RemoteHost.MustExecute("sudo systemctl start python-svc")
 	s.Env().RemoteHost.MustExecute("sudo systemctl start python-instrumented")
 }
 
 func (s *linuxTestSuite) stopServices() {
+	s.Env().RemoteHost.MustExecute("sudo systemctl stop node-svc")
+	s.Env().RemoteHost.MustExecute("sudo systemctl stop node-instrumented")
 	s.Env().RemoteHost.MustExecute("sudo systemctl stop python-instrumented")
 	s.Env().RemoteHost.MustExecute("sudo systemctl stop python-svc")
 }
