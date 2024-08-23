@@ -39,11 +39,11 @@ import (
 var helmTemplate string
 
 type helmConfig struct {
-	ProcessAgentEnabled        bool
-	ProcessCollection          bool
-	ProcessDiscoveryCollection bool
-	ContainerCollection        bool
-	RunInCoreAgent             bool
+	ProcessCollection            bool
+	ProcessDiscoveryCollection   bool
+	ContainerCollection          bool
+	RunInCoreAgent               bool
+	NetworkPerformanceMonitoring bool
 }
 
 func createHelmValues(cfg helmConfig) (string, error) {
@@ -66,8 +66,7 @@ type K8sSuite struct {
 func TestK8sTestSuite(t *testing.T) {
 	t.Parallel()
 	helmValues, err := createHelmValues(helmConfig{
-		ProcessAgentEnabled: true,
-		ProcessCollection:   true,
+		ProcessCollection: true,
 	})
 	require.NoError(t, err)
 
@@ -105,33 +104,24 @@ func (s *K8sSuite) TestProcessCheck() {
 	assertContainersCollected(t, payloads, []string{"stress-ng"})
 }
 
-func (s *K8sSuite) TestProcessCheckInCoreAgent() {
-	t := s.T()
+func (s *K8sSuite) TestManualProcessCheck() {
+	checkOutput := execProcessAgentCheck(s.T(), s.Env().KubernetesCluster, "process")
+	assertManualProcessCheck(s.T(), checkOutput, false, "stress-ng-cpu [run]", "stress-ng")
+}
 
-	assert.EventuallyWithT(t, func(*assert.CollectT) {
-		status := k8sAgentStatus(t, s.Env().KubernetesCluster)
-		assert.ElementsMatch(t, []string{"process", "rtprocess"}, status.ProcessComponentStatus.Expvars.Map.EnabledChecks)
-	}, 2*time.Minute, 5*time.Second)
+func (s *K8sSuite) TestManualProcessDiscoveryCheck() {
+	checkOutput := execProcessAgentCheck(s.T(), s.Env().KubernetesCluster, "process_discovery")
+	assertManualProcessDiscoveryCheck(s.T(), checkOutput, "stress-ng-cpu [run]")
+}
 
-	var payloads []*aggregator.ProcessPayload
-	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		var err error
-		payloads, err = s.Env().FakeIntake.Client().GetProcesses()
-		assert.NoError(c, err, "failed to get process payloads from fakeintake")
-
-		// Wait for two payloads, as processes must be detected in two check runs to be returned
-		assert.GreaterOrEqual(c, len(payloads), 2, "fewer than 2 payloads returned")
-	}, 2*time.Minute, 10*time.Second)
-
-	assertProcessCollected(t, payloads, false, "stress-ng-cpu [run]")
-	assertContainersCollected(t, payloads, []string{"stress-ng"})
-	assertContainersNotCollected(t, payloads, []string{"process-agent"})
+func (s *K8sSuite) TestManualContainerCheck() {
+	checkOutput := execProcessAgentCheck(s.T(), s.Env().KubernetesCluster, "container")
+	assertManualContainerCheck(s.T(), checkOutput, "stress-ng")
 }
 
 func (s *K8sSuite) TestProcessDiscoveryCheck() {
 	t := s.T()
 	helmValues, err := createHelmValues(helmConfig{
-		ProcessAgentEnabled:        true,
 		ProcessDiscoveryCollection: true,
 	})
 	require.NoError(t, err)
@@ -159,19 +149,74 @@ func (s *K8sSuite) TestProcessDiscoveryCheck() {
 	assertProcessDiscoveryCollected(t, payloads, "stress-ng-cpu [run]")
 }
 
-func (s *K8sSuite) TestManualProcessCheck() {
-	checkOutput := execProcessAgentCheck(s.T(), s.Env().KubernetesCluster, "process")
-	assertManualProcessCheck(s.T(), checkOutput, false, "stress-ng-cpu [run]", "stress-ng")
+func (s *K8sSuite) TestProcessCheckInCoreAgent() {
+	t := s.T()
+	helmValues, err := createHelmValues(helmConfig{
+		ProcessCollection: true,
+		RunInCoreAgent:    true,
+	})
+	require.NoError(t, err)
+
+	s.UpdateEnv(awskubernetes.KindProvisioner(
+		awskubernetes.WithWorkloadApp(func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+			return cpustress.K8sAppDefinition(e, kubeProvider, "workload-stress")
+		}),
+		awskubernetes.WithAgentOptions(kubernetesagentparams.WithHelmValues(helmValues)),
+	))
+
+	assert.EventuallyWithT(t, func(*assert.CollectT) {
+		status := k8sAgentStatus(t, s.Env().KubernetesCluster)
+		assert.ElementsMatch(t, []string{"process", "rtprocess"}, status.ProcessComponentStatus.Expvars.Map.EnabledChecks)
+	}, 2*time.Minute, 5*time.Second)
+
+	var payloads []*aggregator.ProcessPayload
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		var err error
+		payloads, err = s.Env().FakeIntake.Client().GetProcesses()
+		assert.NoError(c, err, "failed to get process payloads from fakeintake")
+
+		// Wait for two payloads, as processes must be detected in two check runs to be returned
+		assert.GreaterOrEqual(c, len(payloads), 2, "fewer than 2 payloads returned")
+	}, 2*time.Minute, 10*time.Second)
+
+	assertProcessCollected(t, payloads, false, "stress-ng-cpu [run]")
+	assertContainersCollected(t, payloads, []string{"stress-ng"})
+	assertContainersNotCollected(t, payloads, []string{"process-agent"})
 }
 
-func (s *K8sSuite) TestManualProcessDiscoveryCheck() {
-	checkOutput := execProcessAgentCheck(s.T(), s.Env().KubernetesCluster, "process_discovery")
-	assertManualProcessDiscoveryCheck(s.T(), checkOutput, "stress-ng-cpu [run]")
-}
+func (s *K8sSuite) TestProcessCheckInCoreAgentWithNPM() {
+	t := s.T()
+	helmValues, err := createHelmValues(helmConfig{
+		ProcessCollection:            true,
+		RunInCoreAgent:               true,
+		NetworkPerformanceMonitoring: true,
+	})
+	require.NoError(t, err)
 
-func (s *K8sSuite) TestManualContainerCheck() {
-	checkOutput := execProcessAgentCheck(s.T(), s.Env().KubernetesCluster, "container")
-	assertManualContainerCheck(s.T(), checkOutput, "stress-ng")
+	s.UpdateEnv(awskubernetes.KindProvisioner(
+		awskubernetes.WithWorkloadApp(func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+			return cpustress.K8sAppDefinition(e, kubeProvider, "workload-stress")
+		}),
+		awskubernetes.WithAgentOptions(kubernetesagentparams.WithHelmValues(helmValues)),
+	))
+
+	assert.EventuallyWithT(t, func(*assert.CollectT) {
+		status := k8sAgentStatus(t, s.Env().KubernetesCluster)
+		assert.ElementsMatch(t, []string{"process", "rtprocess"}, status.ProcessComponentStatus.Expvars.Map.EnabledChecks)
+	}, 2*time.Minute, 5*time.Second)
+
+	var payloads []*aggregator.ProcessPayload
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		var err error
+		payloads, err = s.Env().FakeIntake.Client().GetProcesses()
+		assert.NoError(c, err, "failed to get process payloads from fakeintake")
+
+		// Wait for two payloads, as processes must be detected in two check runs to be returned
+		assert.GreaterOrEqual(c, len(payloads), 2, "fewer than 2 payloads returned")
+	}, 2*time.Minute, 10*time.Second)
+
+	assertProcessCollected(t, payloads, false, "stress-ng-cpu [run]")
+	assertContainersCollected(t, payloads, []string{"stress-ng", "process-agent"})
 }
 
 func execProcessAgentCheck(t *testing.T, cluster *components.KubernetesCluster, check string) string {
